@@ -13,7 +13,6 @@ namespace StraatModel
             this.KnoopID = id;
             this.punt = punt;
         }
-
         public override bool Equals(object obj)
         {
             return obj is Knoop knoop &&

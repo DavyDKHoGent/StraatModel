@@ -8,14 +8,12 @@ namespace StraatModel
     {
         static void Main()
         {
-            //var s = new StraatManager();
-            //Dictionary<int, string> straatNamen = s.MaakDictionary();
-            //foreach (var straatNaam in straatNamen)
-            //    Console.WriteLine($"{straatNaam.Key}, {straatNaam.Value}");
-            
-            var k = new DataManager();
-            k.MaakAlles();
-            //k.check();
+            Manager mng = new Manager();
+            //Dictionary<string, Dictionary<string, List<Straat>>> t = stm.Uitkomst();
+            //mng.MaakProvincies();
+            Rapport rpt = new Rapport();
+            rpt.AantalStratenPerProvincie();
+            //rpt.StraatInfo();
         }
     }
 }

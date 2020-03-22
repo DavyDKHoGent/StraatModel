@@ -9,13 +9,13 @@ namespace StraatModel
         public Segment(int segmentID, Knoop beginKnoop, Knoop eindknoop, List<Punt> vertices)
         {
             BeginKnoop = beginKnoop;
-            Eindknoop = eindknoop;
+            EindKnoop = eindknoop;
             SegmentID = segmentID;
             Vertices = vertices;
         }
 
         public Knoop BeginKnoop { get; set; }
-        public Knoop Eindknoop { get; set; }
+        public Knoop EindKnoop { get; set; }
         public int SegmentID { get; set; }
         public List<Punt> Vertices { get; set; }
 
@@ -23,14 +23,14 @@ namespace StraatModel
         {
             return obj is Segment segment &&
                    EqualityComparer<Knoop>.Default.Equals(BeginKnoop, segment.BeginKnoop) &&
-                   EqualityComparer<Knoop>.Default.Equals(Eindknoop, segment.Eindknoop) &&
+                   EqualityComparer<Knoop>.Default.Equals(EindKnoop, segment.EindKnoop) &&
                    SegmentID == segment.SegmentID &&
                    EqualityComparer<List<Punt>>.Default.Equals(Vertices, segment.Vertices);
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(BeginKnoop, Eindknoop, SegmentID, Vertices);
+            return HashCode.Combine(BeginKnoop, EindKnoop, SegmentID, Vertices);
         }
     }
 }
