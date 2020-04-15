@@ -6,21 +6,11 @@ using System.Linq;
 
 namespace StraatModel
 {
-    public class Manager
+    public class Reader
     {
-        private Dictionary<int, List<Segment>> OrderSegmentenPerStraat()
+        private Dictionary<int, Knoop> _knopen = new Dictionary<int, Knoop>();
+        private Dictionary<int, List<Segment>> OrderSegmentenPerStraatId()
         {
-            #region geheugensteun
-            //var wegSegmentID = collecties[0]; // int => Segment (ok)
-            //var geo = collecties[1]; // lange lijst van doubles (ok)
-            //var morfologie = collecties[2]; // int (wordt niet gebruikt)
-            //var status = collecties[3]; // int (wordt niet gebruikt)
-            //var beginKnoop = collecties[4]; //int => Segment (ok)
-            //var eindknoop = collecties[5]; // int => segment (ok)
-            //var linksStraatNaamID = collecties[6]; // int (if -9 dan wegsmijten) (ok)
-            //var rechtsStraatNaamID = collecties[7]; //int (if -9 dan wegsmijten) (ok)
-            #endregion
-
             Dictionary<int, List<Segment>> straatIdEnListSegmenten = new Dictionary<int, List<Segment>>();
             List<string[]> data = ReadDataBestand();
             foreach (string[] collectie in data)
@@ -34,14 +24,17 @@ namespace StraatModel
                     Segment segment = MaakSegment(collectie);
 
                     // segment toevoegen per straatId in bovenstaande dictionary
-                    if (linksStraatNaamId == rechtsStraatNaamId)
+                    // controle op Id's
+                    // bij 2 dezelfde id's wordt de straat in 1 gemeente geplaatst 
+                    if (linksStraatNaamId == rechtsStraatNaamId) 
                     {
                         if (!straatIdEnListSegmenten.ContainsKey(linksStraatNaamId))
                             straatIdEnListSegmenten.Add(linksStraatNaamId, new List<Segment>() { segment });
                         else
                             straatIdEnListSegmenten[linksStraatNaamId].Add(segment);
                     }
-                    else if (linksStraatNaamId != rechtsStraatNaamId)
+                    // bij 2 verschillende id's wordt er gekeken of een id != -9 zoniet word de straat in 2 gemeentes gestopt
+                    else if (linksStraatNaamId != rechtsStraatNaamId) 
                     {
                         int[] straatIds = new int[] { linksStraatNaamId, rechtsStraatNaamId };
                         for (int i = 0; i < straatIds.Length; i++)
@@ -66,20 +59,22 @@ namespace StraatModel
             List<Punt> vertices = MaakPunten(collectie[1]);
 
             // begin -en eindknopen aanmaken
-            int beginKnoopID = int.Parse(collectie[4]);
-            Knoop beginKnoop = new Knoop(beginKnoopID, vertices[0]);
-            int EindKnoopID = int.Parse(collectie[5]);
-            Knoop eindKnoop = new Knoop(EindKnoopID, vertices[vertices.Count - 1]);
+            int beginKnoopId = int.Parse(collectie[4]);
+            if (!_knopen.ContainsKey(beginKnoopId))
+                _knopen.Add(beginKnoopId, new Knoop(beginKnoopId, vertices[0]));
+
+            int eindKnoopId = int.Parse(collectie[5]);
+            if (!_knopen.ContainsKey(eindKnoopId))
+                _knopen.Add(eindKnoopId, new Knoop(eindKnoopId, vertices[vertices.Count - 1]));
 
             // segment aanmaken
             int wegSegmentId = int.Parse(collectie[0]);
-            Segment segment = new Segment(wegSegmentId, beginKnoop, eindKnoop, vertices);
+            Segment segment = new Segment(wegSegmentId, _knopen[beginKnoopId], _knopen[eindKnoopId], vertices);
 
             return segment;
         }
         private List<Punt> MaakPunten(string punten)
         {
-            List<Punt> vertices = new List<Punt>();
             // lijst van 2 doubles met spatie gesplitst en komma's tussen de doubles (double double, double double, ...)
             string[] nummers = punten.Split(", ");
             nummers[nummers.Length - 1] = nummers[nummers.Length - 1].Remove(nummers[nummers.Length - 1].Length - 1);
@@ -87,12 +82,13 @@ namespace StraatModel
             // nog 2 doubles per index
 
             // doubles splitsen, in punten zetten en toevoegen aan de lijst punten.
+            List<Punt> vertices = new List<Punt>();
             for (int i = 0; i < nummers.Length; i++)
             {
                 string[] doubles = nummers[i].Split(" ");
-                double.TryParse(doubles[0], out double X);
-                double.TryParse(doubles[1], out double Y);
-                vertices.Add(new Punt(X, Y));
+                double x = double.Parse(doubles[0].Replace(".", ","));
+                double y = double.Parse(doubles[1].Replace(".", ","));
+                vertices.Add(new Punt(x, y));
             }
             return vertices;
         }
@@ -113,9 +109,9 @@ namespace StraatModel
             }
             return straatIdEnGemeenteId;
         }
-        private Dictionary<int, List<Straat>> MaakStratenEnLinkMetGemeenteId()   // Klopt dit? Dic dat hier wordt gemaakt heeft minder gemeentes.
-        {                                                                       // WRGemeenteID bevate niet alle straatdIDs die je in WRStraatnamen vindt
-            Dictionary<int, List<Segment>> straatIdEnListSegmenten = OrderSegmentenPerStraat();
+        private Dictionary<int, List<Straat>> MaakStratenEnLinkMetGemeenteId()   
+        {                                                                        
+            Dictionary<int, List<Segment>> straatIdEnListSegmenten = OrderSegmentenPerStraatId();
             Dictionary<int, string> straatIdEnNaam = ReadStraatBestand();
             Dictionary<int, int> straatIdEnGemeenteId = straatIdMetGemeenteId();
             Dictionary<int, List<Straat>> gemeenteIdsEnStraten = new Dictionary<int, List<Straat>>();
@@ -142,8 +138,8 @@ namespace StraatModel
                 // graaf en straat is aangemaakt
                 int straatId = straatIdEnSegment.Key;
 
-                if (straatIdEnGemeenteId.ContainsKey(straatId))         // voorlopige oplossing tot ik meer weet.
-                {                                                       // als de straatId niet in WRgemeenteID zit negeer ik die straat voorlopig
+                if (straatIdEnGemeenteId.ContainsKey(straatId))         
+                {                                                       
                     // straten linken aan gemeenteIds en toevoegen aan dictionary.
                     if (!gemeenteIdsEnStraten.ContainsKey(straatIdEnGemeenteId[straatId]))
                         gemeenteIdsEnStraten.Add(straatIdEnGemeenteId[straatId], new List<Straat>() { straat });
@@ -197,7 +193,6 @@ namespace StraatModel
         }
         private List<int> ProvincieIds()
         {
-            // lijst met provincieIDs aanmaken.
             List<int> provincieIDs = new List<int>();
             using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\ProvincieIDsVlaanderen.csv"))
             {
@@ -241,7 +236,6 @@ namespace StraatModel
             Dictionary<string, List<int>> ProvincieEnListGemeenteId = ProvincieLinkMetGemeente();
             Dictionary<string, List<Gemeente>> provincieEnListGemeentes = new Dictionary<string, List<Gemeente>>();
             string line;
-            int nieuwId = 1;
             using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\WRGemeentenaam.csv"))
             {
                 string headerLine = r.ReadLine();
@@ -251,10 +245,9 @@ namespace StraatModel
                     int gemeenteId = int.Parse(collectie[1]);
                     string taalCode = collectie[2];
 
-                    if (taalCode == "nl" && gemeenteIdEnListStraten.ContainsKey(gemeenteId)) // 2de voorlopige oplossing. controleren of de gemeenteId bestaat.
+                    if (taalCode == "nl" && gemeenteIdEnListStraten.ContainsKey(gemeenteId)) 
                     {
-                        Gemeente g = new Gemeente(nieuwId, collectie[3], gemeenteIdEnListStraten[gemeenteId]);
-                        nieuwId++;
+                        Gemeente g = new Gemeente(collectie[3], gemeenteIdEnListStraten[gemeenteId]);
                         foreach (var provincieNamenEnGemeenteId in ProvincieEnListGemeenteId)
                         {
                             if (provincieNamenEnGemeenteId.Value.Contains(gemeenteId))
@@ -271,15 +264,13 @@ namespace StraatModel
             }
             return provincieEnListGemeentes;
         }
-        public List<Provincie> MaakProvincies()
+        public List<Provincie> MaakData()
         {
             Dictionary<string, List<Gemeente>> provincies = MaakGemeentesEnLinkMetProvincie();
             List<Provincie> uitkomst = new List<Provincie>();
-            int id = 1;
             foreach (var provincie in provincies)
             {
-                Provincie p = new Provincie(id, provincie.Key, provincie.Value);
-                id++;
+                Provincie p = new Provincie(provincie.Key, provincie.Value);
                 uitkomst.Add(p);
             }
             return uitkomst;

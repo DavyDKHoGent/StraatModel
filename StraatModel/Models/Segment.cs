@@ -4,7 +4,7 @@ using System.Text;
 
 namespace StraatModel
 {
-    public class Segment 
+    public class Segment
     {
         public Segment(int segmentID, Knoop beginKnoop, Knoop eindknoop, List<Punt> vertices)
         {
@@ -31,6 +31,17 @@ namespace StraatModel
         public override int GetHashCode()
         {
             return HashCode.Combine(BeginKnoop, EindKnoop, SegmentID, Vertices);
+        }
+        public override string ToString()
+        {
+            string einde = null;
+            Vertices.ForEach(punt => einde += $"\n                  {punt.ToString()}");
+            return $"\n             <Segment>\n         <SegmentId>{SegmentID}</SegmentId>\n            <SegmentBeginknoopId>{BeginKnoop.KnoopId}</SegmentBeginknoopId>\n" +
+                $"           <SegmentEindknoopId>{EindKnoop.KnoopId}</SegmentEendknoopId>\n            </Segment>\n             <Punten>{einde}\n               </Punten>";
+        }
+        public int GetCountVertices()
+        {
+            return Vertices.Count;
         }
     }
 }

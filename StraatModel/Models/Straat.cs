@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 namespace StraatModel
 {
@@ -31,7 +32,12 @@ namespace StraatModel
         }
         public override string ToString()
         {
-            return ($"{StraatId}, {Naam}, {Graaf.Map.Count}.");
+            return ($"<Straat>\n<StraatId>{StraatId}</straatId>\n<StraatNaam>{Naam}</straatnaam>\n{Graaf}\n</Straat>");
+        }
+        public double GetLengte()
+        {
+            double lengte = Graaf.Map.SelectMany(entry => entry.Value).Distinct().Select(segment => segment.Length()).Sum();
+            return Math.Round(lengte, 2);
         }
     }
 }
