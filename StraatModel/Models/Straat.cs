@@ -36,6 +36,7 @@ namespace StraatModel
         }
         public double GetLengte()
         {
+            var s = Graaf.Map.SelectMany(entry => entry.Value).Distinct();
             double lengte = Graaf.Map.SelectMany(entry => entry.Value).Distinct().Select(segment => segment.Length()).Sum();
             return Math.Round(lengte, 2);
         }

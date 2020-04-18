@@ -1,53 +1,63 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using System.Linq;
 
 namespace StraatModel
 {
     public class Reader
     {
+        private string _path;
         private Dictionary<int, Knoop> _knopen = new Dictionary<int, Knoop>();
+        public Reader(string path)
+        {
+            this._path = path;
+        }
         private Dictionary<int, List<Segment>> OrderSegmentenPerStraatId()
         {
             Dictionary<int, List<Segment>> straatIdEnListSegmenten = new Dictionary<int, List<Segment>>();
-            List<string[]> data = ReadDataBestand();
-            foreach (string[] collectie in data)
+            string line;
+            using (StreamReader r = new StreamReader(_path + @"\WRdata.csv"))
             {
-                // controle of de straat een naam heeft.
-                int linksStraatNaamId = int.Parse(collectie[6]);
-                int rechtsStraatNaamId = int.Parse(collectie[7]);
-                if (!(linksStraatNaamId == -9 && rechtsStraatNaamId == -9))
+                string headerline = r.ReadLine();
+                while ((line = r.ReadLine()) != null)
                 {
-                    // segment aanmaken
-                    Segment segment = MaakSegment(collectie);
+                    string[] collectie = line.Split(";");
 
-                    // segment toevoegen per straatId in bovenstaande dictionary
-                    // controle op Id's
-                    // bij 2 dezelfde id's wordt de straat in 1 gemeente geplaatst 
-                    if (linksStraatNaamId == rechtsStraatNaamId) 
+                    // controle of de straat een naam heeft.
+                    int linksStraatNaamId = int.Parse(collectie[6]);
+                    int rechtsStraatNaamId = int.Parse(collectie[7]);
+                    if (!(linksStraatNaamId == -9 && rechtsStraatNaamId == -9))
                     {
-                        if (!straatIdEnListSegmenten.ContainsKey(linksStraatNaamId))
-                            straatIdEnListSegmenten.Add(linksStraatNaamId, new List<Segment>() { segment });
-                        else
-                            straatIdEnListSegmenten[linksStraatNaamId].Add(segment);
-                    }
-                    // bij 2 verschillende id's wordt er gekeken of een id != -9 zoniet word de straat in 2 gemeentes gestopt
-                    else if (linksStraatNaamId != rechtsStraatNaamId) 
-                    {
-                        int[] straatIds = new int[] { linksStraatNaamId, rechtsStraatNaamId };
-                        for (int i = 0; i < straatIds.Length; i++)
+                        // segment aanmaken
+                        Segment segment = MaakSegment(collectie);
+
+                        // segment toevoegen per straatId in bovenstaande dictionary
+                        // controle op Id's
+                        // bij 2 dezelfde id's wordt de straat in 1 gemeente geplaatst 
+                        if (linksStraatNaamId == rechtsStraatNaamId)
                         {
-                            int straatId = straatIds[i];
-                            if (straatId != -9)
+                            if (!straatIdEnListSegmenten.ContainsKey(linksStraatNaamId))
+                                straatIdEnListSegmenten.Add(linksStraatNaamId, new List<Segment>() { segment });
+                            else
+                                straatIdEnListSegmenten[linksStraatNaamId].Add(segment);
+                        }
+                        // bij 2 verschillende id's wordt er gekeken of een id != -9 zoniet word de straat in 2 gemeentes gestopt
+                        else if (linksStraatNaamId != rechtsStraatNaamId)
+                        {
+                            int[] straatIds = new int[] { linksStraatNaamId, rechtsStraatNaamId };
+                            for (int i = 0; i < straatIds.Length; i++)
                             {
-                                if (!straatIdEnListSegmenten.ContainsKey(straatId))
-                                    straatIdEnListSegmenten.Add(straatId, new List<Segment>() { segment });
-                                else
-                                    straatIdEnListSegmenten[straatId].Add(segment);
+                                int straatId = straatIds[i];
+                                if (straatId != -9)
+                                {
+                                    if (!straatIdEnListSegmenten.ContainsKey(straatId))
+                                        straatIdEnListSegmenten.Add(straatId, new List<Segment>() { segment });
+                                    else
+                                        straatIdEnListSegmenten[straatId].Add(segment);
+                                }
                             }
                         }
+
                     }
                 }
             }
@@ -56,7 +66,7 @@ namespace StraatModel
         private Segment MaakSegment(string[] collectie)
         {
             // lijst met punten maken.
-            List<Punt> vertices = MaakPunten(collectie[1]);
+            List<Punt> vertices = MaakVertices(collectie[1]);
 
             // begin -en eindknopen aanmaken
             int beginKnoopId = int.Parse(collectie[4]);
@@ -73,11 +83,11 @@ namespace StraatModel
 
             return segment;
         }
-        private List<Punt> MaakPunten(string punten)
+        private List<Punt> MaakVertices(string punten)
         {
             // lijst van 2 doubles met spatie gesplitst en komma's tussen de doubles (double double, double double, ...)
             string[] nummers = punten.Split(", ");
-            nummers[nummers.Length - 1] = nummers[nummers.Length - 1].Remove(nummers[nummers.Length - 1].Length - 1);
+            nummers[^1] = nummers[^1].Remove(nummers[^1].Length - 1);
             nummers[0] = nummers[0].Remove(0, 12);
             // nog 2 doubles per index
 
@@ -92,11 +102,11 @@ namespace StraatModel
             }
             return vertices;
         }
-        private Dictionary<int, int> straatIdMetGemeenteId()
+        public Dictionary<int, int> StraatIdMetGemeenteId()
         {
             string line;
             Dictionary<int, int> straatIdEnGemeenteId = new Dictionary<int, int>();
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\FileIO\FileIOData\StraatnaamID_gemeenteID.csv"))
+            using (StreamReader r = new StreamReader(_path + @"\WRGemeenteID.csv"))
             {
                 string headerLine = r.ReadLine();
                 while ((line = r.ReadLine()) != null)
@@ -109,11 +119,29 @@ namespace StraatModel
             }
             return straatIdEnGemeenteId;
         }
-        private Dictionary<int, List<Straat>> MaakStratenEnLinkMetGemeenteId()   
-        {                                                                        
+        private Dictionary<int, string> ReadStraatBestand()
+        {
+            Dictionary<int, string> straatData = new Dictionary<int, string>();
+            string line;
+            using (StreamReader r = new StreamReader(_path + @"\WRstraatnamen.csv"))
+            {
+                string headerline = r.ReadLine();
+                string testline = r.ReadLine();
+                while ((line = r.ReadLine()) != null)
+                {
+                    string[] collectie = line.Split(";");
+                    int straatId = int.Parse(collectie[0]);
+                    if (straatId != -9)
+                        straatData.Add(straatId, collectie[1].Trim());
+                }
+            }
+            return straatData;
+        }
+        private Dictionary<int, List<Straat>> MaakStratenEnLinkMetGemeenteId()
+        {
             Dictionary<int, List<Segment>> straatIdEnListSegmenten = OrderSegmentenPerStraatId();
             Dictionary<int, string> straatIdEnNaam = ReadStraatBestand();
-            Dictionary<int, int> straatIdEnGemeenteId = straatIdMetGemeenteId();
+            Dictionary<int, int> straatIdEnGemeenteId = StraatIdMetGemeenteId();
             Dictionary<int, List<Straat>> gemeenteIdsEnStraten = new Dictionary<int, List<Straat>>();
             int nieuwId = 1;
 
@@ -138,8 +166,8 @@ namespace StraatModel
                 // graaf en straat is aangemaakt
                 int straatId = straatIdEnSegment.Key;
 
-                if (straatIdEnGemeenteId.ContainsKey(straatId))         
-                {                                                       
+                if (straatIdEnGemeenteId.ContainsKey(straatId))
+                {
                     // straten linken aan gemeenteIds en toevoegen aan dictionary.
                     if (!gemeenteIdsEnStraten.ContainsKey(straatIdEnGemeenteId[straatId]))
                         gemeenteIdsEnStraten.Add(straatIdEnGemeenteId[straatId], new List<Straat>() { straat });
@@ -150,51 +178,10 @@ namespace StraatModel
             }
             return gemeenteIdsEnStraten;
         }
-        private List<string[]> ReadDataBestand()
-        {
-            List<string[]> data = new List<string[]>();
-            string line;
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\WRdata.csv"))
-            {
-                string headerline = r.ReadLine();
-                while ((line = r.ReadLine()) != null)
-                {
-                    string[] collectie = line.Split(";");
-                    if (collectie.Length != 8)
-                        throw new ArgumentException($"De string is niet correct ingevuld");
-                    else
-                        data.Add(collectie);
-                }
-            }
-            return data;
-        }
-        private Dictionary<int, string> ReadStraatBestand()
-        {
-            Dictionary<int, string> straatData = new Dictionary<int, string>();
-            string line;
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\WRstraatnamen.csv"))
-            {
-                string headerline = r.ReadLine();
-                string testline = r.ReadLine();
-                while ((line = r.ReadLine()) != null)
-                {
-                    string[] collectie = line.Split(";");
-                    if (collectie.Length != 2)
-                        throw new ArgumentException($"De string is niet correct ingevuld");
-                    else
-                    {
-                        int straatId = int.Parse(collectie[0]);
-                        if (straatId != -9)
-                            straatData.Add(straatId, collectie[1].Trim());
-                    }
-                }
-            }
-            return straatData;
-        }
         private List<int> ProvincieIds()
         {
             List<int> provincieIDs = new List<int>();
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\ProvincieIDsVlaanderen.csv"))
+            using (StreamReader r = new StreamReader(_path + @"\ProvincieIDsVlaanderen.csv"))
             {
                 string header = r.ReadLine();
                 string[] collectie = header.Split(",");
@@ -211,7 +198,7 @@ namespace StraatModel
             List<int> provincieIDs = ProvincieIds();
             string line;
             Dictionary<string, List<int>> provincieNamenEnGemeenteIds = new Dictionary<string, List<int>>();
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\ProvincieInfo.csv"))
+            using (StreamReader r = new StreamReader(_path + @"\ProvincieInfo.csv"))
             {
                 string headerLine = r.ReadLine();
                 while ((line = r.ReadLine()) != null)
@@ -236,7 +223,7 @@ namespace StraatModel
             Dictionary<string, List<int>> ProvincieEnListGemeenteId = ProvincieLinkMetGemeente();
             Dictionary<string, List<Gemeente>> provincieEnListGemeentes = new Dictionary<string, List<Gemeente>>();
             string line;
-            using (StreamReader r = new StreamReader(@"C:\Users\davy\Documents\data\WRdata\WRGemeentenaam.csv"))
+            using (StreamReader r = new StreamReader(_path + @"\WRGemeentenaam.csv"))
             {
                 string headerLine = r.ReadLine();
                 while ((line = r.ReadLine()) != null)
@@ -245,7 +232,7 @@ namespace StraatModel
                     int gemeenteId = int.Parse(collectie[1]);
                     string taalCode = collectie[2];
 
-                    if (taalCode == "nl" && gemeenteIdEnListStraten.ContainsKey(gemeenteId)) 
+                    if (taalCode == "nl" && gemeenteIdEnListStraten.ContainsKey(gemeenteId))
                     {
                         Gemeente g = new Gemeente(collectie[3], gemeenteIdEnListStraten[gemeenteId]);
                         foreach (var provincieNamenEnGemeenteId in ProvincieEnListGemeenteId)

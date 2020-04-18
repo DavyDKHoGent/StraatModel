@@ -9,11 +9,10 @@ namespace StraatModel
     {
         private List<Provincie> _provincies;
         private DirectoryInfo _mainDirectory;
-        public Writer(string path)
+        public Writer(string pathToWrite, List<Provincie> provincies)
         {
-            Reader reader = new Reader();
-            _provincies = reader.MaakData();
-            _mainDirectory = new DirectoryInfo(path);
+            this._provincies = provincies;
+            _mainDirectory = new DirectoryInfo(pathToWrite);
         }
         public void SchrijfData()
         {
@@ -44,8 +43,8 @@ namespace StraatModel
                     writer.WriteLine($"StraatInfo<{provincie.Naam}>:\n");
                     foreach (var gemeente in provincie.Gemeentes)
                     {
-                        var orderedStraten = gemeente.Straten.OrderBy(s => s.GetLengte());
-                        var totaleLengte = Math.Round(orderedStraten.Select(v => v.GetLengte()).Sum());
+                        var orderedStraten = gemeente.Straten.OrderBy(straat => straat.GetLengte());
+                        var totaleLengte = Math.Round(orderedStraten.Select(straat => straat.GetLengte()).Sum());
                         writer.WriteLine($" <{gemeente.Naam}>: <{gemeente.Straten.Count()}>, <{totaleLengte}M>");
                         var eerste = orderedStraten.First();
                         var laatste = orderedStraten.Last();
